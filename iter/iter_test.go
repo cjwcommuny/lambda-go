@@ -79,3 +79,16 @@ func TestZip(t *testing.T) {
 	}
 	quickTest(t, f)
 }
+
+func TestFold(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe2(
+			SliceIter[int],
+			Fold(make([]int, 0), func(slice []int, element int) []int {
+				return append(slice, element)
+			}),
+		)(s)
+		return reflect.DeepEqual(s, result)
+	}
+	quickTest(t, f)
+}
