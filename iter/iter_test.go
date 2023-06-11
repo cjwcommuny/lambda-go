@@ -2,6 +2,7 @@ package iter
 
 import (
 	"github.com/barweiss/go-tuple"
+	"github.com/cjwcommuny/lambda-go/adt/opt"
 	"math"
 	"reflect"
 	"testing"
@@ -112,6 +113,25 @@ func TestFilter(t *testing.T) {
 			}
 			return true
 		}()
+	}
+	quickTest(t, f)
+}
+
+func TestFind(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe2(
+			SliceIter[int],
+			Find(func(x int) bool { return x > 0 }),
+		)(s)
+		expectedResult := func() opt.Option[int] {
+			for _, x := range s {
+				if x > 0 {
+					return opt.Some(x)
+				}
+			}
+			return opt.None[int]()
+		}()
+		return reflect.DeepEqual(result, expectedResult)
 	}
 	quickTest(t, f)
 }
