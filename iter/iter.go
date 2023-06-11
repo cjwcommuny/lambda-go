@@ -14,8 +14,8 @@ type SizeHint struct {
 }
 
 type Iter[E any] struct {
-	next        func() opt.Option[E]
-	getSizeHint func() SizeHint
+	next     func() opt.Option[E]
+	sizeHint SizeHint
 }
 
 func Next[E any](iter Iter[E]) opt.Option[E] {
@@ -23,23 +23,21 @@ func Next[E any](iter Iter[E]) opt.Option[E] {
 }
 
 func GetSizeHint[E any](iter Iter[E]) SizeHint {
-	return iter.getSizeHint()
+	return iter.sizeHint
 }
 
 func NewIterWithoutSizeHint[E any](next func() opt.Option[E]) Iter[E] {
 	return Iter[E]{
 		next: next,
-		getSizeHint: func() SizeHint {
-			return SizeHint{
-				LowerBound: 0,
-				UpperBound: opt.None[int](),
-			}
+		sizeHint: SizeHint{
+			LowerBound: 0,
+			UpperBound: opt.None[int](),
 		},
 	}
 }
 
 func NewIterWithStaticSizeHintLowerBound[E any](next func() opt.Option[E], sizeHint int) Iter[E] {
-	return NewIterWithStaticSizeHint(
+	return NewIter(
 		next,
 		SizeHint{
 			LowerBound: sizeHint,
@@ -48,15 +46,8 @@ func NewIterWithStaticSizeHintLowerBound[E any](next func() opt.Option[E], sizeH
 	)
 }
 
-func NewIterWithStaticSizeHint[E any](next func() opt.Option[E], sizeHint SizeHint) Iter[E] {
-	return Iter[E]{
-		next:        next,
-		getSizeHint: func() SizeHint { return sizeHint },
-	}
-}
-
-func NewIter[E any](next func() opt.Option[E], getSizeHint func() SizeHint) Iter[E] {
-	return Iter[E]{next, getSizeHint}
+func NewIter[E any](next func() opt.Option[E], sizeHint SizeHint) Iter[E] {
+	return Iter[E]{next, sizeHint}
 }
 
 func SliceIter[E any](slice []E) Iter[E] {
@@ -71,11 +62,9 @@ func SliceIter[E any](slice []E) Iter[E] {
 				return opt.None[E]()
 			}
 		},
-		getSizeHint: func() SizeHint {
-			return SizeHint{
-				LowerBound: len(slice),
-				UpperBound: opt.Some(len(slice)),
-			}
+		sizeHint: SizeHint{
+			LowerBound: len(slice),
+			UpperBound: opt.Some(len(slice)),
 		},
 	}
 }
@@ -87,7 +76,7 @@ func Map[A any, B any](f func(A) B) func(Iter[A]) Iter[B] {
 				element := base.next()
 				return opt.Map(f)(element)
 			},
-			getSizeHint: base.getSizeHint,
+			sizeHint: GetSizeHint(base),
 		}
 	}
 }
@@ -125,11 +114,9 @@ func Filter[E any](predicate func(E) bool) func(Iter[E]) Iter[E] {
 			next: func() opt.Option[E] {
 				return Find(predicate)(it)
 			},
-			getSizeHint: func() SizeHint {
-				return SizeHint{
-					LowerBound: 0,
-					UpperBound: it.getSizeHint().UpperBound,
-				}
+			sizeHint: SizeHint{
+				LowerBound: 0,
+				UpperBound: GetSizeHint(it).UpperBound,
 			},
 		}
 	}
@@ -146,8 +133,8 @@ func Fold[B any, E any](init B, f func(B, E) B) func(Iter[E]) B {
 
 func Zip[A any, B any](iterA Iter[A]) func(Iter[B]) Iter[tuple.T2[A, B]] {
 	return func(iterB Iter[B]) Iter[tuple.T2[A, B]] {
-		sizeHintA := iterA.getSizeHint()
-		sizeHintB := iterB.getSizeHint()
+		sizeHintA := GetSizeHint(iterA)
+		sizeHintB := GetSizeHint(iterB)
 		upperBound := func() opt.Option[int] {
 			if opt.IsSome(sizeHintA.UpperBound) && opt.IsSome(sizeHintB.UpperBound) {
 				return opt.Some(utils.Min(opt.GetSomeUnchecked(sizeHintA.UpperBound), opt.GetSomeUnchecked(sizeHintB.UpperBound)))
@@ -164,7 +151,7 @@ func Zip[A any, B any](iterA Iter[A]) func(Iter[B]) Iter[tuple.T2[A, B]] {
 			elementB := iterB.next()
 			return opt.Zip[A, B](elementA)(elementB)
 		}
-		return NewIterWithStaticSizeHint(
+		return NewIter(
 			next,
 			SizeHint{
 				LowerBound: utils.Min(sizeHintA.LowerBound, sizeHintA.LowerBound),
@@ -175,7 +162,7 @@ func Zip[A any, B any](iterA Iter[A]) func(Iter[B]) Iter[tuple.T2[A, B]] {
 }
 
 func CollectToSlice[E any](it Iter[E]) []E {
-	result := make([]E, 0, it.getSizeHint().LowerBound)
+	result := make([]E, 0, GetSizeHint(it).LowerBound)
 	ForEach(func(e E) {
 		result = append(result, e)
 	})(it)
@@ -183,7 +170,7 @@ func CollectToSlice[E any](it Iter[E]) []E {
 }
 
 func CollectToMap[K comparable, V any](it Iter[tuple.T2[K, V]]) map[K]V {
-	result := make(map[K]V, it.getSizeHint().LowerBound)
+	result := make(map[K]V, GetSizeHint(it).LowerBound)
 	ForEach(func(t tuple.T2[K, V]) {
 		result[t.V1] = t.V2
 	})(it)
@@ -215,7 +202,7 @@ func Iterate[E any](generate func(E) E) func(init E) Iter[E] {
 			)(previous)
 		}
 		sizeHint := SizeHint{LowerBound: 1, UpperBound: opt.None[int]()}
-		return NewIterWithStaticSizeHint(next, sizeHint)
+		return NewIter(next, sizeHint)
 	}
 }
 
@@ -230,7 +217,7 @@ func Take[E any](n int) func(Iter[E]) Iter[E] {
 				return opt.None[E]()
 			}
 		}
-		originalSizeHint := iterator.getSizeHint()
+		originalSizeHint := GetSizeHint(iterator)
 		sizeHint := SizeHint{
 			LowerBound: originalSizeHint.LowerBound,
 			UpperBound: opt.Some(opt.MapOr(
@@ -238,7 +225,7 @@ func Take[E any](n int) func(Iter[E]) Iter[E] {
 				func(upperBound int) int { return utils.Min(n, upperBound) },
 			)(originalSizeHint.UpperBound)),
 		}
-		return NewIterWithStaticSizeHint(next, sizeHint)
+		return NewIter(next, sizeHint)
 	}
 }
 
@@ -259,9 +246,9 @@ func TakeWhile[E any](predicate func(E) bool) func(Iter[E]) Iter[E] {
 				}
 			})(element)
 		}
-		return NewIterWithStaticSizeHint(
+		return NewIter(
 			next,
-			SizeHint{LowerBound: 0, UpperBound: iterator.getSizeHint().UpperBound},
+			SizeHint{LowerBound: 0, UpperBound: GetSizeHint(iterator).UpperBound},
 		)
 	}
 }
