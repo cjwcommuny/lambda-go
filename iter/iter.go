@@ -98,7 +98,7 @@ func ForEach[E any](f func(E)) func(Iter[E]) adt.Void {
 			if opt.IsNone(element) {
 				break
 			}
-			f(opt.GetSome(element))
+			f(opt.GetSomeUnchecked(element))
 		}
 		return adt.MakeVoid()
 	}
@@ -111,7 +111,7 @@ func Find[E any](predicate func(E) bool) func(Iter[E]) opt.Option[E] {
 			if opt.IsNone(element) {
 				return opt.None[E]()
 			}
-			if predicate(opt.GetSome(element)) {
+			if predicate(opt.GetSomeUnchecked(element)) {
 				return element
 			}
 		}
@@ -149,7 +149,7 @@ func Zip[A any, B any](iterA Iter[A]) func(Iter[B]) Iter[tuple.T2[A, B]] {
 		sizeHintB := iterB.getSizeHint()
 		upperBound := func() opt.Option[int] {
 			if opt.IsSome(sizeHintA.UpperBound) && opt.IsSome(sizeHintB.UpperBound) {
-				return opt.Some(utils.Min(opt.GetSome(sizeHintA.UpperBound), opt.GetSome(sizeHintB.UpperBound)))
+				return opt.Some(utils.Min(opt.GetSomeUnchecked(sizeHintA.UpperBound), opt.GetSomeUnchecked(sizeHintB.UpperBound)))
 			} else if opt.IsSome(sizeHintA.UpperBound) {
 				return sizeHintA.UpperBound
 			} else if opt.IsSome(sizeHintB.UpperBound) {
@@ -170,12 +170,6 @@ func Zip[A any, B any](iterA Iter[A]) func(Iter[B]) Iter[tuple.T2[A, B]] {
 				UpperBound: upperBound,
 			},
 		)
-	}
-}
-
-func Collect[E any, C any](collect func(Iter[E]) C) func(Iter[E]) C {
-	return func(it Iter[E]) C {
-		return collect(it)
 	}
 }
 

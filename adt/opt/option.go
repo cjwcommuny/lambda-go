@@ -24,7 +24,7 @@ func IsSome[T any](o Option[T]) bool {
 	return o.some
 }
 
-func GetSome[T any](o Option[T]) T {
+func GetSomeUnchecked[T any](o Option[T]) T {
 	return o.payload
 }
 
@@ -45,9 +45,83 @@ func Map[A any, B any](f func(A) B) func(Option[A]) Option[B] {
 func Zip[A any, B any](optionA Option[A]) func(Option[B]) Option[tuple.T2[A, B]] {
 	return func(optionB Option[B]) Option[tuple.T2[A, B]] {
 		if IsSome(optionA) && IsSome(optionB) {
-			return Some(tuple.New2(GetSome(optionA), GetSome(optionB)))
+			return Some(tuple.New2(GetSomeUnchecked(optionA), GetSomeUnchecked(optionB)))
 		} else {
 			return None[tuple.T2[A, B]]()
 		}
+	}
+}
+
+func UnwrapOr[T any](defaultValue T) func(Option[T]) T {
+	return func(o Option[T]) T {
+		if IsSome(o) {
+			return GetSomeUnchecked(o)
+		} else {
+			return defaultValue
+		}
+	}
+}
+
+func UnwrapOrElse[T any](defaultFunc func() T) func(Option[T]) T {
+	return func(o Option[T]) T {
+		if IsSome(o) {
+			return GetSomeUnchecked(o)
+		} else {
+			return defaultFunc()
+		}
+	}
+}
+
+func Expect[T any](panicValue any) func(Option[T]) T {
+	return func(o Option[T]) T {
+		if IsSome(o) {
+			return GetSomeUnchecked(o)
+		} else {
+			panic(panicValue)
+		}
+	}
+}
+
+func Unwrap[T any](o Option[T]) T {
+	if IsSome(o) {
+		return GetSomeUnchecked(o)
+	} else {
+		panic("called `Unwrap` on a `None` value")
+	}
+}
+
+func Inspect[T any](f func(T)) func(Option[T]) {
+	return func(o Option[T]) {
+		if IsSome(o) {
+			f(GetSomeUnchecked(o))
+		}
+	}
+}
+
+func Or[T any](left Option[T]) func(Option[T]) Option[T] {
+	return func(right Option[T]) Option[T] {
+		if IsSome(left) {
+			return left
+		} else {
+			return right
+		}
+	}
+}
+
+func And[T any](left Option[T]) func(Option[T]) Option[T] {
+	return func(right Option[T]) Option[T] {
+		if IsNone(left) {
+			return None[T]()
+		} else {
+			return right
+		}
+	}
+}
+
+func Flatten[T any](o Option[Option[T]]) Option[T] {
+	if IsSome(o) {
+		return GetSomeUnchecked(o)
+	} else {
+		return None[T]()
 	}
 }
