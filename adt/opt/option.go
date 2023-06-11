@@ -1,6 +1,9 @@
 package opt
 
-import "github.com/barweiss/go-tuple"
+import (
+	"github.com/barweiss/go-tuple"
+	"github.com/cjwcommuny/lambda-go/fn"
+)
 
 type Option[T any] struct {
 	some    bool
@@ -124,4 +127,18 @@ func Flatten[T any](o Option[Option[T]]) Option[T] {
 	} else {
 		return None[T]()
 	}
+}
+
+func MapOr[A any, B any](defaultValue B, f func(A) B) func(Option[A]) B {
+	return fn.Pipe2(
+		Map(f),
+		UnwrapOr(defaultValue),
+	)
+}
+
+func MapOrElse[A any, B any](defaultFunc func() B, f func(A) B) func(Option[A]) B {
+	return fn.Pipe2(
+		Map(f),
+		UnwrapOrElse(defaultFunc),
+	)
 }

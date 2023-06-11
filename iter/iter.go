@@ -4,6 +4,7 @@ import (
 	"github.com/barweiss/go-tuple"
 	"github.com/cjwcommuny/lambda-go/adt"
 	"github.com/cjwcommuny/lambda-go/adt/opt"
+	"github.com/cjwcommuny/lambda-go/num"
 	"github.com/cjwcommuny/lambda-go/utils"
 )
 
@@ -195,4 +196,53 @@ func Count[E any](it Iter[E]) int {
 		counter++
 	})(it)
 	return counter
+}
+
+func Iterate[E any](generate func(E) E) func(init E) Iter[E] {
+	return func(init E) Iter[E] {
+		previous := opt.None[E]()
+		next := func() opt.Option[E] {
+			return opt.MapOrElse(
+				func() opt.Option[E] {
+					previous = opt.Some(init)
+					return opt.Some(init)
+				},
+				func(pre E) opt.Option[E] {
+					current := generate(pre)
+					previous = opt.Some(current)
+					return opt.Some(current)
+				},
+			)(previous)
+		}
+		sizeHint := SizeHint{LowerBound: 1, UpperBound: opt.None[int]()}
+		return NewIterWithStaticSizeHint(next, sizeHint)
+	}
+}
+
+func Take[E any](n int) func(Iter[E]) Iter[E] {
+	return func(iterator Iter[E]) Iter[E] {
+		count := 0
+		next := func() opt.Option[E] {
+			if count < n {
+				count++
+				return iterator.next()
+			} else {
+				return opt.None[E]()
+			}
+		}
+		originalSizeHint := iterator.getSizeHint()
+		sizeHint := SizeHint{
+			LowerBound: originalSizeHint.LowerBound,
+			UpperBound: opt.Some(opt.MapOr(
+				n,
+				func(upperBound int) int { return utils.Min(n, upperBound) },
+			)(originalSizeHint.UpperBound)),
+		}
+		return NewIterWithStaticSizeHint(next, sizeHint)
+	}
+}
+
+func Enumerate[E any](it Iter[E]) Iter[tuple.T2[int, E]] {
+	indices := Iterate(num.Increment[int])(0)
+	return Zip[int, E](indices)(it)
 }

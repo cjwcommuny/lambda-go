@@ -3,6 +3,7 @@ package iter
 import (
 	"github.com/barweiss/go-tuple"
 	"github.com/cjwcommuny/lambda-go/adt/opt"
+	"github.com/cjwcommuny/lambda-go/num"
 	"math"
 	"reflect"
 	"testing"
@@ -132,6 +133,47 @@ func TestFind(t *testing.T) {
 			return opt.None[int]()
 		}()
 		return reflect.DeepEqual(result, expectedResult)
+	}
+	quickTest(t, f)
+}
+
+func TestIterateAndTake(t *testing.T) {
+	f := func(init uint, step uint, count uint) bool {
+		init = init % 100
+		step = step % 100
+		count = count % 20
+		result := fn.Pipe3(
+			Iterate(num.IncrementBy(step)),
+			Take[uint](int(count)),
+			CollectToSlice[uint],
+		)(init)
+		lengthMatch := len(result) == int(count)
+		elementsMatch := func() bool {
+			for index := 0; index < int(count); index++ {
+				if result[index] != init+uint(index)*step {
+					return false
+				}
+			}
+			return true
+		}()
+		return lengthMatch && elementsMatch
+	}
+	quickTest(t, f)
+}
+
+func TestEnumerate(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe3(
+			SliceIter[int],
+			Enumerate[int],
+			CollectToSlice[tuple.T2[int, int]],
+		)(s)
+		for index := range s {
+			if result[index].V1 != index || result[index].V2 != s[index] {
+				return false
+			}
+		}
+		return true
 	}
 	quickTest(t, f)
 }
