@@ -92,3 +92,26 @@ func TestFold(t *testing.T) {
 	}
 	quickTest(t, f)
 }
+
+func TestFilter(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe3(
+			SliceIter[int],
+			Filter(func(x int) bool { return x > 0 }),
+			CollectToSlice[int],
+		)(s)
+		return func() bool {
+			count := 0
+			for _, x := range s {
+				if x > 0 {
+					if result[count] != x {
+						return false
+					}
+					count++
+				}
+			}
+			return true
+		}()
+	}
+	quickTest(t, f)
+}
