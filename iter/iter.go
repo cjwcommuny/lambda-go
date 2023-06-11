@@ -246,3 +246,22 @@ func Enumerate[E any](it Iter[E]) Iter[tuple.T2[int, E]] {
 	indices := Iterate(num.Increment[int])(0)
 	return Zip[int, E](indices)(it)
 }
+
+func TakeWhile[E any](predicate func(E) bool) func(Iter[E]) Iter[E] {
+	return func(iterator Iter[E]) Iter[E] {
+		next := func() opt.Option[E] {
+			element := iterator.next()
+			return opt.AndThen(func(e E) opt.Option[E] {
+				if predicate(e) {
+					return opt.Some(e)
+				} else {
+					return opt.None[E]()
+				}
+			})(element)
+		}
+		return NewIterWithStaticSizeHint(
+			next,
+			SizeHint{LowerBound: 0, UpperBound: iterator.getSizeHint().UpperBound},
+		)
+	}
+}

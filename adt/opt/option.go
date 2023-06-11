@@ -142,3 +142,10 @@ func MapOrElse[A any, B any](defaultFunc func() B, f func(A) B) func(Option[A]) 
 		UnwrapOrElse(defaultFunc),
 	)
 }
+
+func AndThen[A any, B any](f func(A) Option[B]) func(Option[A]) Option[B] {
+	return fn.Pipe2(
+		Map(f),
+		Flatten[B],
+	)
+}
