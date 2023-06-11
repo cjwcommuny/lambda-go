@@ -188,3 +188,11 @@ func CollectToMap[K comparable, V any](it Iter[tuple.T2[K, V]]) map[K]V {
 	})(it)
 	return result
 }
+
+func Count[E any](it Iter[E]) int {
+	counter := 0
+	ForEach(func(element E) {
+		counter++
+	})(it)
+	return counter
+}

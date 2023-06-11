@@ -47,3 +47,11 @@ func TestMap(t *testing.T) {
 	}
 	quickTest(t, f)
 }
+
+func TestCount(t *testing.T) {
+	f := func(s []int) bool {
+		count := fn.Pipe2(SliceIter[int], Count[int])(s)
+		return count == len(s)
+	}
+	quickTest(t, f)
+}
