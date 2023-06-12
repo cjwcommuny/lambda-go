@@ -227,3 +227,38 @@ func TestSkipWhile(t *testing.T) {
 	}
 	quickTest(t, f)
 }
+
+func TestReduce(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe2(
+			SliceIter[int],
+			Reduce(func(left int, right int) int { return left + right }),
+		)(s)
+		expectedResult := opt.None[int]()
+		for _, x := range s {
+			expectedResult = opt.Some(opt.MapOr(x, func(acc int) int { return acc + x })(expectedResult))
+		}
+		return reflect.DeepEqual(result, expectedResult)
+	}
+	quickTest(t, f)
+}
+
+func TestTakeWhile(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe3(
+			SliceIter[int],
+			TakeWhile(func(x int) bool { return x > 0 }),
+			CollectToSlice[int],
+		)(s)
+		expectedResult := make([]int, 0)
+		for _, x := range s {
+			if x > 0 {
+				expectedResult = append(expectedResult, x)
+			} else {
+				break
+			}
+		}
+		return reflect.DeepEqual(result, expectedResult)
+	}
+	quickTest(t, f)
+}
