@@ -1,7 +1,7 @@
 package adt
 
-type Void interface{}
+type Void struct{}
 
 func MakeVoid() Void {
-	return true
+	return Void{}
 }
