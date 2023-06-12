@@ -252,3 +252,75 @@ func TakeWhile[E any](predicate func(E) bool) func(Iter[E]) Iter[E] {
 		)
 	}
 }
+
+func Skip[E any](n int) func(Iter[E]) Iter[E] {
+	return func(iterator Iter[E]) Iter[E] {
+		count := 0
+		next := func() opt.Option[E] {
+			for count < n && opt.IsSome(Next(iterator)) {
+				count++
+			}
+			return Next(iterator)
+		}
+		return NewIter(
+			next,
+			SizeHint{LowerBound: 0, UpperBound: GetSizeHint(iterator).UpperBound},
+		)
+	}
+}
+
+func SkipWhile[E any](predicate func(E) bool) func(Iter[E]) Iter[E] {
+	return func(iterator Iter[E]) Iter[E] {
+		checkSkip := true
+		next := func() opt.Option[E] {
+			if checkSkip {
+				element := Next(iterator)
+				for opt.Map(predicate)(element) == opt.Some(true) {
+					element = Next(iterator)
+				}
+				checkSkip = false
+				return element
+			} else {
+				return Next(iterator)
+			}
+		}
+		return NewIter(
+			next,
+			SizeHint{LowerBound: 0, UpperBound: GetSizeHint(iterator).UpperBound},
+		)
+	}
+}
+
+func Reduce[E any](f func(E, E) E) func(Iter[E]) opt.Option[E] {
+	return func(base Iter[E]) opt.Option[E] {
+		return opt.Map(func(e E) E {
+			return Fold(e, f)(base)
+		})(Next(base))
+	}
+}
+
+func All(iterator Iter[bool]) bool {
+	for {
+		element := Next(iterator)
+		if opt.IsSome(element) {
+			if !opt.GetSomeUnchecked(element) {
+				return false
+			}
+		} else {
+			return true
+		}
+	}
+}
+
+func Any(iterator Iter[bool]) bool {
+	for {
+		element := Next(iterator)
+		if opt.IsSome(element) {
+			if opt.GetSomeUnchecked(element) {
+				return true
+			}
+		} else {
+			return false
+		}
+	}
+}
