@@ -177,3 +177,53 @@ func TestEnumerate(t *testing.T) {
 	}
 	quickTest(t, f)
 }
+
+func TestSkip(t *testing.T) {
+	f := func(s []int, n uint16) bool {
+		skip := func() int {
+			if len(s) == 0 {
+				return int(n)
+			} else {
+				return int(n) % len(s)
+			}
+		}()
+		result := fn.Pipe3(
+			SliceIter[int],
+			Skip[int](skip),
+			CollectToSlice[int],
+		)(s)
+		lengthMatch := len(result) == int(math.Max(float64(len(s)-skip), 0))
+		elementsMatch := func() bool {
+			for index := skip; index < len(s); index++ {
+				if s[index] != result[index-skip] {
+					return false
+				}
+			}
+			return true
+		}()
+		return lengthMatch && elementsMatch
+	}
+	quickTest(t, f)
+}
+
+func TestSkipWhile(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe3(
+			SliceIter[int],
+			SkipWhile(func(x int) bool { return x > 0 }),
+			CollectToSlice[int],
+		)(s)
+		expectedResult := make([]int, 0)
+		index := 0
+		for ; index < len(s); index++ {
+			if s[index] <= 0 {
+				break
+			}
+		}
+		for ; index < len(s); index++ {
+			expectedResult = append(expectedResult, s[index])
+		}
+		return reflect.DeepEqual(result, expectedResult)
+	}
+	quickTest(t, f)
+}
