@@ -262,3 +262,19 @@ func TestTakeWhile(t *testing.T) {
 	}
 	quickTest(t, f)
 }
+
+func TestCollectToMap(t *testing.T) {
+	f := func(s []int) bool {
+		result := fn.Pipe3(
+			SliceIter[int],
+			Map(func(x int) tuple.T2[int, int] { return tuple.New2(x, x/2) }),
+			CollectToMap[int, int],
+		)(s)
+		expectedResult := make(map[int]int)
+		for _, x := range s {
+			expectedResult[x] = x / 2
+		}
+		return reflect.DeepEqual(result, expectedResult)
+	}
+	quickTest(t, f)
+}
